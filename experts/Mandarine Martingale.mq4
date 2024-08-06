@@ -58,7 +58,7 @@ extern int          Pivottimeframe                  = PERIOD_D1;
 extern int          Strategy                        = 1;           // #1=pivots2=MTF Ichimoku Cross3=Schaff and Kama with filter
 extern double       Lots                            = 0.01;        // We start with this number of lots
 extern int          TakeProfit                      = 110;         // Profit Goal in PIPs for the latest order opened
-extern double       multiply                        = 1; 
+extern double       multiply                        = 1.7; 
 extern int          MaxTrades                       = 15;           // Maximum number of orders to open
 extern int          Pips                            = 20;          // Distance in Pips from one order to another
 extern int          StopLoss                        = 600;         // StopLoss
@@ -570,7 +570,7 @@ void OpenMarketOrders(int mySignal)
     
     for(cnt=0;cnt<myCount;cnt++)
     {
-      ticket=0;
+      ticket=-1;
       attempts=0;
       SellPrice=Bid;				
       if (TakeProfit==0) tp=0;
@@ -666,7 +666,7 @@ void OpenMarketOrders(int mySignal)
 
     for(cnt=0;cnt<myCount;cnt++)
     {
-      ticket=0;
+      ticket=-1;
       attempts=0;
       BuyPrice=Ask;
       if (TakeProfit==0) tp=0;
@@ -1010,12 +1010,75 @@ int CloseOutTradesCheck()
 void CalculateLotArray(int myDirection,int openTradeCount)
 {
   double MaxLossAmount;
-  if (mm <= 0)
+  if (mm <= 0 || mm > 2 )
   {
     LotSizeArray[0,myDirection]=NormalizedLots(Lots,true);
     for (cnt=1;cnt<MaxTrades;cnt++) LotSizeArray[cnt,myDirection]=LotSizeArray[cnt-1,myDirection]*multiply;
     for (cnt=1;cnt<MaxTrades;cnt++) LotSizeArray[cnt,myDirection]=NormalizedLots(LotSizeArray[cnt,myDirection],true);
     if (openTradeCount==0) LotSizeArray[99,myDirection]=AccountBalance();
+  }
+
+  if (mm == 1)
+  {
+    if (openTradeCount==0 || (openTradeCount>0 && AccountBalance() > LotSizeArray[99,myDirection]))
+    {
+      double myLotStep = MarketInfo(Symbol(), MODE_LOTSTEP);
+      if (TradeMicroLots) myLotStep = 0.01;
+      BaseLot=MathCeil(AccountBalance()*risk/10000)/100; 
+      BaseLot=BaseLot * 100000 / MarketInfo(Symbol(), MODE_LOTSIZE); 
+      LotSizeArray[0,myDirection]=NormalizedLots(BaseLot,true);
+      for (cnt=1;cnt<MaxTrades;cnt++) LotSizeArray[cnt,myDirection]=LotSizeArray[cnt-1,myDirection]*multiply;
+      for (cnt=1;cnt<MaxTrades;cnt++) LotSizeArray[cnt,myDirection]=NormalizedLots(LotSizeArray[cnt,myDirection],true);
+      if (openTradeCount==0) LotSizeArray[99,myDirection]=AccountBalance();
+    }
+  }
+
+  if (mm == 2)
+  {
+    /* Example with 600 PIP SL, 90 PIP spacing, 1.7x Lot Size multiplier:
+    600 + 510*1.7^1 + 420*1.7^2 + 330*1.7^3 + 240*1.7^4 + 150*1.7^5 = XAdjPips
+    Total = MarketInfo(Symbol(), MODE_TICKVALUE) * XAdjPips;
+    Risk = Total / AccountBalance();
+
+    Therefore, if: 
+    1 lot = 0.33 from the tick_value, which is based on 1 standard lot suppose it results in 33% risk
+    X lot = 0.10 but we want the lot size equivalent of just 10% of account risk
+    X = 0.1/0.33 converts to: risk% * accountbalance() / total
+
+    Finally:
+    BaseLot = risk% * accountbalance() / total;
+    
+    This risk model is not like mm=1, which steps up risk in abrupt steps, especially on smaller account sizes.
+
+    This special MM system uses the Outside In Risk Approach... or balanced risk approach:
+    Note that using this method, the risk is first stepped up from the trades that come later in the sequence
+    since it is less risky to add 0.01 lot to the 6th trade than it is to add 0.01 lot to the first trade.
+    This results in a higher Profit Factor with a slightly lower draw down.
+    
+    Thank you, Tom Bradbury, for the idea to add in risk from the "outside in!"
+    */
+    
+    if (MaxTrades>0 && (openTradeCount==0 || (openTradeCount>0 && AccountBalance() > LotSizeArray[99,myDirection])))
+    {
+      MaxLossAmount = 0;
+      for (cnt=0;cnt<MaxTrades;cnt++) MaxLossAmount += MathMax((StopLoss - cnt*Pips),0) * MathPow(multiply,cnt); 
+      BaseLot = (risk/100) * AccountBalance() / (MarketInfo(Symbol(), MODE_TICKVALUE) * MaxLossAmount);
+      double MaxTradeLotSize1 = NormalizedLots(NormalizedLots(BaseLot,false) * MathPow(multiply,MaxTrades-1),true);
+      double MaxTradeLotSize2 = NormalizedLots(BaseLot * MathPow(multiply,MaxTrades-1),true);
+      if (MaxTradeLotSize2>=MaxTradeLotSize1)
+      { 
+        LotSizeArray[MaxTrades-1,myDirection]=MaxTradeLotSize2;
+        for (cnt=MaxTrades-2;cnt>=0;cnt--) LotSizeArray[cnt,myDirection]=LotSizeArray[cnt+1,myDirection]/multiply;
+        for (cnt=MaxTrades-2;cnt>=0;cnt--) LotSizeArray[cnt,myDirection]=NormalizedLots(LotSizeArray[cnt,myDirection],false);
+      }
+      else
+      { 
+        LotSizeArray[0,myDirection]=NormalizedLots(BaseLot,false);
+        for (cnt=1;cnt<MaxTrades;cnt++) LotSizeArray[cnt,myDirection]=LotSizeArray[cnt-1,myDirection]*multiply;
+        for (cnt=1;cnt<MaxTrades;cnt++) LotSizeArray[cnt,myDirection]=NormalizedLots(LotSizeArray[cnt,myDirection],true);
+      }
+      if (openTradeCount==0) LotSizeArray[99,myDirection]=AccountBalance();
+    }
   }
 
   MaxLossAmount = 0;
