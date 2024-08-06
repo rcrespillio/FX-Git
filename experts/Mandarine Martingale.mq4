@@ -333,6 +333,29 @@ int start()
     }
     
   }
+  else 
+  {
+    bool TT = false;
+    if (IsTradingTime() && !TradingDisabled)
+    {
+      TT = true;
+      PrepareIndicators(); 
+      
+      myOrderTypetmp=CheckEntrySignal();
+
+      if (ReverseCondition)
+      {
+        if (myOrderTypetmp==1) myOrderTypetmp=2;
+        else if (myOrderTypetmp==2) myOrderTypetmp=1;
+      }
+
+      if (myOrderTypetmp==1 && CurrentOpenOrders[OP_SELL]==0 && IsTradeAllowed() && dtSellAllowed < TimeCurrent())
+      {
+        Print("Starting New SELL Sequence");
+        OpenMarketOrders(myOrderTypetmp); 
+      }
+    }
+  }
 
   TSManager(); 
   
