@@ -565,7 +565,6 @@ void OpenMarketOrders(int mySignal)
   {	     		
     myCount=1;
     if (RecoveryMode && CurrentOpenOrders[OP_SELL]>0 && CurrentOpenOrders[OP_SELL]<MaxTrades && Bid-LastOrderOpenPrice[OP_SELL]>=Pips*Point*2 && canOpen(OP_SELL))
-     myCount = MathFloor((Bid-LastOrderOpenPrice[OP_SELL])/(Pips*Point));
     CalculateLotArray(OP_SELL,CurrentOpenOrders[OP_SELL]);
     
     for(cnt=0;cnt<myCount;cnt++)
@@ -661,7 +660,6 @@ void OpenMarketOrders(int mySignal)
   {			      
     myCount=1;
     if (RecoveryMode && CurrentOpenOrders[OP_BUY]>0 && CurrentOpenOrders[OP_BUY]<MaxTrades && LastOrderOpenPrice[OP_BUY]-Ask>=Pips*Point*2 && canOpen(OP_BUY))
-    myCount = MathFloor((LastOrderOpenPrice[OP_BUY]-Ask)/(Pips*Point));
     CalculateLotArray(OP_BUY,CurrentOpenOrders[OP_BUY]);
 
     for(cnt=0;cnt<myCount;cnt++)
@@ -1430,13 +1428,13 @@ double CalcStopLoss(int op)
   {  
     case OP_BUY:
       if (HighestBuySL==0)
-         newSL = BuyPrice-StopLoss*Pips;
+         newSL = BuyPrice-StopLoss*Point;
       else
          newSL = HighestBuySL;
       break; 	
     case OP_SELL:
       if (LowestSellSL==0)
-         newSL = SellPrice+StopLoss*Pips;
+         newSL = SellPrice+StopLoss*Point;
       else
          newSL = LowestSellSL;
       break; 	
