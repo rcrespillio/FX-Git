@@ -339,7 +339,6 @@ int start()
   
 
   TTstatus = "False";
-  if (TT) TTstatus = "True";
   if (SecureProfitProtection && MarketOpenOrders[OP_BUY]>=OrderstoProtect) text=StringConcatenate(text, "\nSecure Profit Protection Active on BUY sequence.");
   if (SecureProfitProtection && MarketOpenOrders[OP_SELL]>=OrderstoProtect) text=StringConcatenate(text, "\nSecure Profit Protection Active on SELL sequence.");
   if (MyMoneyProfitTarget) text=StringConcatenate(text, "\nMy Money Profit Target Progress: ", DoubleToStr(MMProfit[OP_BUY]+MMProfit[OP_SELL],2), " of ", DoubleToStr(My_Money_Profit_Target,2));
