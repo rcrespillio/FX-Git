@@ -176,7 +176,7 @@ extern int          StopBlackoutMonth               = 01;
   double              MaxDD,MaxPercentDD; 
 
 // General Program Variables
-  string              text="", TTstatus = "False", MMPTstatus = "False", SPPstatus = "False", LBOT, LSOT;
+  string              text="", TTstatus = "False", MMPTstatus = "False", SPPstatus = "False", LBOT, LSOT, TT="";
   double              ActualRiskPercentS, ActualRiskPercentB;
   bool                result;   
   int                 cnt=0, myDigits;
