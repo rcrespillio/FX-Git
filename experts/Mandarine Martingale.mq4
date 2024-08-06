@@ -58,6 +58,7 @@ extern int          Pivottimeframe                  = PERIOD_D1;
 extern int          Strategy                        = 1;           // #1=pivots2=MTF Ichimoku Cross3=Schaff and Kama with filter
 extern double       Lots                            = 0.01;        // We start with this number of lots
 extern int          TakeProfit                      = 110;         // Profit Goal in PIPs for the latest order opened
+extern double       multiply                        = 1; 
 extern int          MaxTrades                       = 15;           // Maximum number of orders to open
 extern int          Pips                            = 20;          // Distance in Pips from one order to another
 extern int          StopLoss                        = 600;         // StopLoss
@@ -175,7 +176,7 @@ extern int          StopBlackoutMonth               = 01;
   double              MaxDD,MaxPercentDD; 
 
 // General Program Variables
-  string              text="", TTstatus = "False", MMPTstatus = "False", SPPstatus = "False", LBOT, LSOT, TT="";
+  string              text="", TTstatus = "False", MMPTstatus = "False", SPPstatus = "False", LBOT, LSOT;
   double              ActualRiskPercentS, ActualRiskPercentB;
   bool                result;   
   int                 cnt=0, myDigits;
@@ -228,8 +229,9 @@ extern int          StopBlackoutMonth               = 01;
 
   if (IsTesting())
   {
-
-}
+    CalculateLotArray(OP_BUY,0);
+    CalculateLotArray(OP_SELL,0);
+  }
   else
   {
     ReadLotArray(); 
@@ -352,6 +354,14 @@ int start()
         Print("Starting New SELL Sequence");
         OpenMarketOrders(myOrderTypetmp); 
       }
+
+      if (myOrderTypetmp==2 && CurrentOpenOrders[OP_BUY]==0 && IsTradeAllowed() && dtBuyAllowed < TimeCurrent())
+      {
+        Print("Starting New BUY Sequence");
+        OpenMarketOrders(myOrderTypetmp); 
+      }
+
+      if (IsTradeAllowed()) OpenMarketOrders(3); 
     }
   }
 
@@ -556,10 +566,11 @@ void OpenMarketOrders(int mySignal)
     myCount=1;
     if (RecoveryMode && CurrentOpenOrders[OP_SELL]>0 && CurrentOpenOrders[OP_SELL]<MaxTrades && Bid-LastOrderOpenPrice[OP_SELL]>=Pips*Point*2 && canOpen(OP_SELL))
      myCount = MathFloor((Bid-LastOrderOpenPrice[OP_SELL])/(Pips*Point));
+    CalculateLotArray(OP_SELL,CurrentOpenOrders[OP_SELL]);
     
     for(cnt=0;cnt<myCount;cnt++)
     {
-      ticket=-1;
+      ticket=0;
       attempts=0;
       SellPrice=Bid;				
       if (TakeProfit==0) tp=0;
@@ -651,10 +662,11 @@ void OpenMarketOrders(int mySignal)
     myCount=1;
     if (RecoveryMode && CurrentOpenOrders[OP_BUY]>0 && CurrentOpenOrders[OP_BUY]<MaxTrades && LastOrderOpenPrice[OP_BUY]-Ask>=Pips*Point*2 && canOpen(OP_BUY))
     myCount = MathFloor((LastOrderOpenPrice[OP_BUY]-Ask)/(Pips*Point));
+    CalculateLotArray(OP_BUY,CurrentOpenOrders[OP_BUY]);
 
     for(cnt=0;cnt<myCount;cnt++)
     {
-      ticket=-1;
+      ticket=0;
       attempts=0;
       BuyPrice=Ask;
       if (TakeProfit==0) tp=0;
@@ -995,6 +1007,27 @@ int CloseOutTradesCheck()
   return(result);   
 }
 
+void CalculateLotArray(int myDirection,int openTradeCount)
+{
+  double MaxLossAmount;
+  if (mm <= 0)
+  {
+    LotSizeArray[0,myDirection]=NormalizedLots(Lots,true);
+    for (cnt=1;cnt<MaxTrades;cnt++) LotSizeArray[cnt,myDirection]=LotSizeArray[cnt-1,myDirection]*multiply;
+    for (cnt=1;cnt<MaxTrades;cnt++) LotSizeArray[cnt,myDirection]=NormalizedLots(LotSizeArray[cnt,myDirection],true);
+    if (openTradeCount==0) LotSizeArray[99,myDirection]=AccountBalance();
+  }
+
+  MaxLossAmount = 0;
+  for (cnt=0;cnt<MaxTrades;cnt++) MaxLossAmount += (StopLoss - cnt*Pips) * LotSizeArray[cnt,myDirection];
+  if (myDirection == OP_SELL)
+    ActualRiskPercentS = (MarketInfo(Symbol(), MODE_TICKVALUE) * MaxLossAmount * 100) / AccountBalance();
+  if (myDirection == OP_BUY)
+    ActualRiskPercentB = (MarketInfo(Symbol(), MODE_TICKVALUE) * MaxLossAmount * 100) / AccountBalance();
+  
+  if (!IsTesting()) WriteLotArray(); 
+}
+
 double NormalizedLots(double myLotSize, bool myMethod)
 {
   double myLotStep = MarketInfo(Symbol(), MODE_LOTSTEP);
@@ -1106,6 +1139,7 @@ void CloseAllOrders(int orderMode)
   PreviousOpenOrders[orderMode] = 0;
   CurrentOpenOrders[orderMode]  = 0;
   LastOrderOpenPrice[orderMode] = 0;
+  CalculateLotArray(orderMode,0); 
 }
 
 
@@ -1218,6 +1252,13 @@ void ReadLotArray()
     if (!(LotSizeArray[99,OP_BUY]>0)) BuyReadSuccess=false;
     if (!(LotSizeArray[99,OP_SELL]>0)) SellReadSuccess=false;
     
+    if (!BuyReadSuccess) CalculateLotArray(OP_BUY,0);
+    if (!SellReadSuccess) CalculateLotArray(OP_SELL,0);
+  }
+  else 
+  {
+    CalculateLotArray(OP_BUY,0);
+    CalculateLotArray(OP_SELL,0);
   }
 
   double MaxLossAmount = 0;
