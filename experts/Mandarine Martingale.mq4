@@ -229,9 +229,8 @@ extern int          StopBlackoutMonth               = 01;
 
   if (IsTesting())
   {
-    CalculateLotArray(OP_BUY,0);
-    CalculateLotArray(OP_SELL,0);
-  }
+
+}
   else
   {
     ReadLotArray(); 
@@ -558,7 +557,6 @@ void OpenMarketOrders(int mySignal)
     myCount=1;
     if (RecoveryMode && CurrentOpenOrders[OP_SELL]>0 && CurrentOpenOrders[OP_SELL]<MaxTrades && Bid-LastOrderOpenPrice[OP_SELL]>=Pips*Point*2 && canOpen(OP_SELL))
      myCount = MathFloor((Bid-LastOrderOpenPrice[OP_SELL])/(Pips*Point));
-    CalculateLotArray(OP_SELL,CurrentOpenOrders[OP_SELL]);
     
     for(cnt=0;cnt<myCount;cnt++)
     {
@@ -654,7 +652,6 @@ void OpenMarketOrders(int mySignal)
     myCount=1;
     if (RecoveryMode && CurrentOpenOrders[OP_BUY]>0 && CurrentOpenOrders[OP_BUY]<MaxTrades && LastOrderOpenPrice[OP_BUY]-Ask>=Pips*Point*2 && canOpen(OP_BUY))
     myCount = MathFloor((LastOrderOpenPrice[OP_BUY]-Ask)/(Pips*Point));
-    CalculateLotArray(OP_BUY,CurrentOpenOrders[OP_BUY]);
 
     for(cnt=0;cnt<myCount;cnt++)
     {
@@ -999,90 +996,6 @@ int CloseOutTradesCheck()
   return(result);   
 }
 
-void CalculateLotArray(int myDirection,int openTradeCount)
-{
-  double MaxLossAmount;
-  if (mm <= 0 || mm > 2 )
-  {
-    LotSizeArray[0,myDirection]=NormalizedLots(Lots,true);
-    for (cnt=1;cnt<MaxTrades;cnt++) LotSizeArray[cnt,myDirection]=LotSizeArray[cnt-1,myDirection]*multiply;
-    for (cnt=1;cnt<MaxTrades;cnt++) LotSizeArray[cnt,myDirection]=NormalizedLots(LotSizeArray[cnt,myDirection],true);
-    if (openTradeCount==0) LotSizeArray[99,myDirection]=AccountBalance();
-  }
-
-  if (mm == 1)
-  {
-    if (openTradeCount==0 || (openTradeCount>0 && AccountBalance() > LotSizeArray[99,myDirection]))
-    {
-      double myLotStep = MarketInfo(Symbol(), MODE_LOTSTEP);
-      if (TradeMicroLots) myLotStep = 0.01;
-      BaseLot=MathCeil(AccountBalance()*risk/10000)/100; 
-      BaseLot=BaseLot * 100000 / MarketInfo(Symbol(), MODE_LOTSIZE); 
-      LotSizeArray[0,myDirection]=NormalizedLots(BaseLot,true);
-      for (cnt=1;cnt<MaxTrades;cnt++) LotSizeArray[cnt,myDirection]=LotSizeArray[cnt-1,myDirection]*multiply;
-      for (cnt=1;cnt<MaxTrades;cnt++) LotSizeArray[cnt,myDirection]=NormalizedLots(LotSizeArray[cnt,myDirection],true);
-      if (openTradeCount==0) LotSizeArray[99,myDirection]=AccountBalance();
-    }
-  }
-
-  if (mm == 2)
-  {
-    /* Example with 600 PIP SL, 90 PIP spacing, 1.7x Lot Size multiplier:
-    600 + 510*1.7^1 + 420*1.7^2 + 330*1.7^3 + 240*1.7^4 + 150*1.7^5 = XAdjPips
-    Total = MarketInfo(Symbol(), MODE_TICKVALUE) * XAdjPips;
-    Risk = Total / AccountBalance();
-
-    Therefore, if: 
-    1 lot = 0.33 from the tick_value, which is based on 1 standard lot suppose it results in 33% risk
-    X lot = 0.10 but we want the lot size equivalent of just 10% of account risk
-    X = 0.1/0.33 converts to: risk% * accountbalance() / total
-
-    Finally:
-    BaseLot = risk% * accountbalance() / total;
-    
-    This risk model is not like mm=1, which steps up risk in abrupt steps, especially on smaller account sizes.
-
-    This special MM system uses the Outside In Risk Approach... or balanced risk approach:
-    Note that using this method, the risk is first stepped up from the trades that come later in the sequence
-    since it is less risky to add 0.01 lot to the 6th trade than it is to add 0.01 lot to the first trade.
-    This results in a higher Profit Factor with a slightly lower draw down.
-    
-    Thank you, Tom Bradbury, for the idea to add in risk from the "outside in!"
-    */
-    
-    if (MaxTrades>0 && (openTradeCount==0 || (openTradeCount>0 && AccountBalance() > LotSizeArray[99,myDirection])))
-    {
-      MaxLossAmount = 0;
-      for (cnt=0;cnt<MaxTrades;cnt++) MaxLossAmount += MathMax((StopLoss - cnt*Pips),0) * MathPow(multiply,cnt); 
-      BaseLot = (risk/100) * AccountBalance() / (MarketInfo(Symbol(), MODE_TICKVALUE) * MaxLossAmount);
-      double MaxTradeLotSize1 = NormalizedLots(NormalizedLots(BaseLot,false) * MathPow(multiply,MaxTrades-1),true);
-      double MaxTradeLotSize2 = NormalizedLots(BaseLot * MathPow(multiply,MaxTrades-1),true);
-      if (MaxTradeLotSize2>=MaxTradeLotSize1)
-      { 
-        LotSizeArray[MaxTrades-1,myDirection]=MaxTradeLotSize2;
-        for (cnt=MaxTrades-2;cnt>=0;cnt--) LotSizeArray[cnt,myDirection]=LotSizeArray[cnt+1,myDirection]/multiply;
-        for (cnt=MaxTrades-2;cnt>=0;cnt--) LotSizeArray[cnt,myDirection]=NormalizedLots(LotSizeArray[cnt,myDirection],false);
-      }
-      else
-      { 
-        LotSizeArray[0,myDirection]=NormalizedLots(BaseLot,false);
-        for (cnt=1;cnt<MaxTrades;cnt++) LotSizeArray[cnt,myDirection]=LotSizeArray[cnt-1,myDirection]*multiply;
-        for (cnt=1;cnt<MaxTrades;cnt++) LotSizeArray[cnt,myDirection]=NormalizedLots(LotSizeArray[cnt,myDirection],true);
-      }
-      if (openTradeCount==0) LotSizeArray[99,myDirection]=AccountBalance();
-    }
-  }
-
-  MaxLossAmount = 0;
-  for (cnt=0;cnt<MaxTrades;cnt++) MaxLossAmount += (StopLoss - cnt*Pips) * LotSizeArray[cnt,myDirection];
-  if (myDirection == OP_SELL)
-    ActualRiskPercentS = (MarketInfo(Symbol(), MODE_TICKVALUE) * MaxLossAmount * 100) / AccountBalance();
-  if (myDirection == OP_BUY)
-    ActualRiskPercentB = (MarketInfo(Symbol(), MODE_TICKVALUE) * MaxLossAmount * 100) / AccountBalance();
-  
-  if (!IsTesting()) WriteLotArray(); 
-}
-
 double NormalizedLots(double myLotSize, bool myMethod)
 {
   double myLotStep = MarketInfo(Symbol(), MODE_LOTSTEP);
@@ -1194,7 +1107,6 @@ void CloseAllOrders(int orderMode)
   PreviousOpenOrders[orderMode] = 0;
   CurrentOpenOrders[orderMode]  = 0;
   LastOrderOpenPrice[orderMode] = 0;
-  CalculateLotArray(orderMode,0); 
 }
 
 
@@ -1307,13 +1219,6 @@ void ReadLotArray()
     if (!(LotSizeArray[99,OP_BUY]>0)) BuyReadSuccess=false;
     if (!(LotSizeArray[99,OP_SELL]>0)) SellReadSuccess=false;
     
-    if (!BuyReadSuccess) CalculateLotArray(OP_BUY,0);
-    if (!SellReadSuccess) CalculateLotArray(OP_SELL,0);
-  }
-  else 
-  {
-    CalculateLotArray(OP_BUY,0);
-    CalculateLotArray(OP_SELL,0);
   }
 
   double MaxLossAmount = 0;
