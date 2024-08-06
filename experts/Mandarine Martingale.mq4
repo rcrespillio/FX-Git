@@ -58,7 +58,6 @@ extern int          Pivottimeframe                  = PERIOD_D1;
 extern int          Strategy                        = 1;           // #1=pivots2=MTF Ichimoku Cross3=Schaff and Kama with filter
 extern double       Lots                            = 0.01;        // We start with this number of lots
 extern int          TakeProfit                      = 110;         // Profit Goal in PIPs for the latest order opened
-extern double       multiply                        = 1.7; 
 extern int          MaxTrades                       = 15;           // Maximum number of orders to open
 extern int          Pips                            = 20;          // Distance in Pips from one order to another
 extern int          StopLoss                        = 600;         // StopLoss
