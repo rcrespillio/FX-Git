@@ -9,7 +9,7 @@
 //|                                                                               |
 //|                                                                               |
 //+-------------------------------------------------------------------------------+
-#property copyright "Copyright © 2005, Alejandro Galindo"
+#property copyright "Copyright ï¿½ 2005, Alejandro Galindo"
 #property link      ""
 
 
@@ -332,37 +332,6 @@ int start()
       return(0);
     }
     
-  }
-  else 
-  {
-    bool TT = false;
-    if (IsTradingTime() && !TradingDisabled)
-    {
-      TT = true;
-      PrepareIndicators(); 
-      
-      myOrderTypetmp=CheckEntrySignal();
-
-      if (ReverseCondition)
-      {
-        if (myOrderTypetmp==1) myOrderTypetmp=2;
-        else if (myOrderTypetmp==2) myOrderTypetmp=1;
-      }
-
-      if (myOrderTypetmp==1 && CurrentOpenOrders[OP_SELL]==0 && IsTradeAllowed() && dtSellAllowed < TimeCurrent())
-      {
-        Print("Starting New SELL Sequence");
-        OpenMarketOrders(myOrderTypetmp); 
-      }
-
-      if (myOrderTypetmp==2 && CurrentOpenOrders[OP_BUY]==0 && IsTradeAllowed() && dtBuyAllowed < TimeCurrent())
-      {
-        Print("Starting New BUY Sequence");
-        OpenMarketOrders(myOrderTypetmp); 
-      }
-
-      if (IsTradeAllowed()) OpenMarketOrders(3); 
-    }
   }
 
   TSManager(); 
