@@ -1430,13 +1430,13 @@ double CalcStopLoss(int op)
   {  
     case OP_BUY:
       if (HighestBuySL==0)
-         newSL = BuyPrice-StopLoss*Point;
+         newSL = BuyPrice-StopLoss*Pips;
       else
          newSL = HighestBuySL;
       break; 	
     case OP_SELL:
       if (LowestSellSL==0)
-         newSL = SellPrice+StopLoss*Point;
+         newSL = SellPrice+StopLoss*Pips;
       else
          newSL = LowestSellSL;
       break; 	
